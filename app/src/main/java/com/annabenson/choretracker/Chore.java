@@ -7,20 +7,24 @@ import java.util.Date;
 
 public class Chore implements Comparable<Chore> {
 
+    private int id;
     private String name;
     private String frequency;
-    private Date lastDone;
     private ArrayList<Date> pastDates;
 
-    public Chore(String name, String frequency, Date lastDone, ArrayList<Date> pastDates) {
-        setName(name);
-        setFrequency(frequency);
-        setLastDone(lastDone);
-        setPastDates(pastDates);
+    public Chore(int id, String name, String frequency, ArrayList<Date> pastDates) {
+        this.id = id;
+        this.name = name;
+        this.frequency = frequency;
+        this.pastDates = pastDates;
     }
 
-    public Chore(String name){
-        setName(name);
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getName() {
@@ -39,30 +43,12 @@ public class Chore implements Comparable<Chore> {
         this.frequency = frequency;
     }
 
-    public Date getLastDone() {
-        return lastDone;
-    }
-
-    public void setLastDone(Date lastDone) {
-        this.lastDone = lastDone;
-    }
-
     public ArrayList<Date> getPastDates() {
         return pastDates;
     }
 
     public void setPastDates(ArrayList<Date> pastDates) {
         this.pastDates = pastDates;
-    }
-
-    @Override
-    public String toString() {
-        return "Chore{" +
-                "name='" + this.name + '\'' +
-                ", frequency='" + this.frequency + '\'' +
-                ", lastDone=" + this.lastDone +
-                ", pastDates=" + this.pastDates +
-                '}';
     }
 
     @Override

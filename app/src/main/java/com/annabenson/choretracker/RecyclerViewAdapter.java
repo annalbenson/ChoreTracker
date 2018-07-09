@@ -15,10 +15,11 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewHolder
     private ArrayList<Chore> chores;
     private MainActivity mainActivity;
 
-    public RecyclerViewAdapter(ArrayList<Chore> chores, MainActivity ma){
+    public RecyclerViewAdapter(ArrayList<Chore> chores, MainActivity ma) {
         this.chores = chores;
         mainActivity = ma;
     }
+
 
     @Override
     public RecyclerViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
