@@ -1,12 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-<color name="colorPrimary">#00BCD4</color>
-<color name="colorPrimaryDark">#0097A7</color>
-<color name="primary_light">#B2EBF2</color>
-<color name="colorAccent">#CDDC39</color>
-<color name="primary_text">#212121</color>
-<color name="secondary_text">#757575</color>
-<color name="icons">#FFFFFF</color>
-<color name="divider">#BDBDBD</color>
-</resources>
+    <!-- Tidy palette — inspired by greenhouse kitchen vibe -->
+    <!-- Sage green (cabinet wall color) -->
+    <color name="colorPrimary">#6B9E8A</color>
+    <!-- Deeper sage for status bar / dark surfaces -->
+    <color name="colorPrimaryDark">#4A7A68</color>
+    <!-- Soft dusty teal accent (water, bottles in image) -->
+    <color name="colorAccent">#78C4C0</color>
 
+    <!-- Backgrounds -->
+    <color name="colorBackground">#F5F2EC</color>
+    <color name="colorSurface">#FFFFFF</color>
+
+    <!-- Terracotta — pot color, good for badges / overdue indicators -->
+    <color name="colorTerracotta">#C07850</color>
+
+    <!-- Text -->
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorTextPrimary">#2C3E35</color>
+    <color name="colorTextSecondary">#6B7F77</color>
+</resources>
