@@ -43,6 +43,9 @@ public class MainActivity extends AppCompatActivity implements ChoreAdapter.List
         recyclerView.setAdapter(choreAdapter);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
+
+        findViewById(R.id.tillyFab).setOnClickListener(v ->
+                startActivity(new Intent(this, TillyActivity.class)));
     }
 
     @Override

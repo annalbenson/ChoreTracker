@@ -130,6 +130,15 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return timestamps;
     }
 
+    // ── Reset ─────────────────────────────────────────────────────────────────
+
+    public void resetAll() {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE_COMPLETIONS, null, null);
+        db.delete(TABLE_CHORES, null, null);
+        db.delete(TABLE_PROFILE, null, null);
+    }
+
     // ── Home Profile ──────────────────────────────────────────────────────────
 
     public void saveProfile(HomeProfile profile) {

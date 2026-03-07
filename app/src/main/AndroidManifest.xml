@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/tidy_icon"
@@ -10,6 +12,14 @@
         android:theme="@style/AppTheme">
         <activity
             android:name=".OnboardingActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".TillyActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".DeclutterActivity"
             android:exported="false" />
 
         <activity

@@ -26,7 +26,6 @@ public class OnboardingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
 
     private final List<OnboardingMessage> messages = new ArrayList<>();
     private ChipListener chipListener;
-    private boolean chipsEnabled = true;
 
     public void setChipListener(ChipListener listener) {
         this.chipListener = listener;
@@ -37,9 +36,26 @@ public class OnboardingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
         notifyItemInserted(messages.size() - 1);
     }
 
-    public void disableChips() {
-        chipsEnabled = false;
-        notifyDataSetChanged();
+    public void replaceMessage(int index, OnboardingMessage message) {
+        if (index >= 0 && index < messages.size()) {
+            messages.set(index, message);
+            notifyItemChanged(index);
+        }
+    }
+
+    public int getItemCount() {
+        return messages.size();
+    }
+
+    /** Disables the most recent CHIPS row only, leaving future rows unaffected. */
+    public void disableLastChips() {
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if (messages.get(i).type == OnboardingMessage.Type.CHIPS) {
+                messages.get(i).chipsEnabled = false;
+                notifyItemChanged(i);
+                return;
+            }
+        }
     }
 
     @Override
@@ -79,7 +95,7 @@ public class OnboardingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
                 Chip chip = new Chip(ch.chipGroup.getContext());
                 chip.setText(label);
                 chip.setCheckable(true);
-                chip.setEnabled(chipsEnabled);
+                chip.setEnabled(msg.chipsEnabled);
                 chip.setOnCheckedChangeListener((v, checked) -> {
                     if (checked) selected.add(label);
                     else selected.remove(label);
@@ -89,17 +105,12 @@ public class OnboardingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
             // Done chip
             Chip done = new Chip(ch.chipGroup.getContext());
             done.setText("Done ✓");
-            done.setEnabled(chipsEnabled);
+            done.setEnabled(msg.chipsEnabled);
             done.setOnClickListener(v -> {
                 if (chipListener != null) chipListener.onChipsSelected(new ArrayList<>(selected));
             });
             ch.chipGroup.addView(done);
         }
-    }
-
-    @Override
-    public int getItemCount() {
-        return messages.size();
     }
 
     static class TillyHolder extends RecyclerView.ViewHolder {

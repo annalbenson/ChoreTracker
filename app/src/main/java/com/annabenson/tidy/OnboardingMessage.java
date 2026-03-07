@@ -8,6 +8,7 @@ public class OnboardingMessage {
     public final Type type;
     public final String text;
     public final List<String> chips; // for Type.CHIPS
+    public boolean chipsEnabled = true; // only relevant for CHIPS type
 
     public OnboardingMessage(Type type, String text) {
         this.type = type;

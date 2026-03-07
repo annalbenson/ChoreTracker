@@ -43,3 +43,4 @@ Items are roughly priority-ordered within each section.
 - [ ] Household sharing — shared chore lists and assignments for couples or roommates
 - [ ] Multi-device sync
 - [ ] Smart home integrations
+- [ ] **Desktop / web companion** — deploy a shared backend (Firebase or Supabase) so users can plan chores from a laptop; web app where you can sit down and do a full weekly/monthly chore planning session

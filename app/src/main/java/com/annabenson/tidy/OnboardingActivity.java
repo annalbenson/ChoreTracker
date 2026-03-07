@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ImageButton;
 
@@ -11,10 +12,18 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.annabenson.tidy.network.GeminiClient;
+import com.annabenson.tidy.network.GeminiRequest;
+import com.annabenson.tidy.network.GeminiResponse;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class OnboardingActivity extends AppCompatActivity {
 
@@ -119,7 +128,7 @@ public class OnboardingActivity extends AppCompatActivity {
     }
 
     private void handleChipResponse(List<String> selected) {
-        adapter.disableChips();
+        adapter.disableLastChips();
         String answer = selected.isEmpty() ? "—" : String.join(", ", selected);
         addUserMessage(answer);
 
@@ -151,13 +160,120 @@ public class OnboardingActivity extends AppCompatActivity {
 
     private void finishOnboarding() {
         databaseHandler.saveProfile(profile);
-        postTilly("Perfect — I've got everything I need! I'll put together a starter chore " +
-                "list based on your home. Let's keep things tidy, " + profile.name + " 🌿");
-        handler.postDelayed(() -> {
+        postTilly("Perfect — I've got everything I need! Give me just a moment while I put " +
+                "together a chore list for your home… 🌿");
+        handler.postDelayed(this::generateStarterChores, 600);
+    }
+
+    private static final boolean TEST_MODE = BuildConfig.DEBUG;
+
+    private void generateStarterChores() {
+        if (TEST_MODE) {
+            Log.d("Tilly", "TEST_MODE: using default chore list");
+            saveDefaultChores();
+            navigateToMain();
+            return;
+        }
+        String prompt = buildChorePrompt(profile);
+        GeminiRequest request = new GeminiRequest(
+                "You are Tilly, a helpful home cleaning assistant. " +
+                "When asked, generate a practical chore list as plain text — " +
+                "one chore per line in the format: \"Chore name | Frequency\" " +
+                "where Frequency is one of: Daily, Weekly, Biweekly, Monthly. " +
+                "No bullets, no numbers, no extra commentary. Just the list.",
+                Collections.singletonList(new GeminiRequest.Content("user",
+                        Collections.singletonList(new GeminiRequest.Part(prompt)))));
+
+        GeminiClient.get().generate(BuildConfig.GEMINI_KEY, request)
+                .enqueue(new Callback<GeminiResponse>() {
+                    @Override
+                    public void onResponse(Call<GeminiResponse> call, Response<GeminiResponse> response) {
+                        String text = response.isSuccessful() && response.body() != null
+                                ? response.body().getText() : null;
+                        Log.d("Tilly", "Chore generation response code: " + response.code());
+                        Log.d("Tilly", "Chore generation raw text: " + text);
+                        int saved = text != null ? parseAndSaveChores(text) : 0;
+                        Log.d("Tilly", "Chores saved: " + saved);
+                        if (saved == 0) {
+                            Log.w("Tilly", "Falling back to default chore list");
+                            saveDefaultChores();
+                        }
+                        navigateToMain();
+                    }
+
+                    @Override
+                    public void onFailure(Call<GeminiResponse> call, Throwable t) {
+                        Log.e("Tilly", "Chore generation failed: " + t.getMessage());
+                        saveDefaultChores();
+                        navigateToMain();
+                    }
+                });
+    }
+
+    private String buildChorePrompt(HomeProfile p) {
+        return "Generate a starter chore list for my home. Here's my situation:\n" +
+                "- Home type: " + p.homeType + "\n" +
+                "- Bedrooms: " + p.bedrooms + ", Bathrooms: " + p.bathrooms + "\n" +
+                "- Laundry: " + p.laundryType + "\n" +
+                "- Household: " + p.householdMembers + "\n" +
+                "- Cleaning style: " + p.cleaningStyle + "\n" +
+                "- Pain points: " + p.painPoints + "\n\n" +
+                "Give me 10–14 practical chores suited to this home.";
+    }
+
+    /** Returns number of chores successfully parsed and saved. */
+    private int parseAndSaveChores(String raw) {
+        int count = 0;
+        for (String line : raw.split("\n")) {
+            line = line.trim()
+                    .replaceAll("^[\\*\\-\\d\\.]+\\s*", "") // strip bullets/numbers
+                    .replaceAll("\\*\\*", "");               // strip markdown bold
+            if (line.isEmpty()) continue;
+            String[] parts = line.split("\\|");
+            String name = parts[0].trim();
+            String frequency = parts.length > 1 ? normalizeFrequency(parts[1].trim()) : "Weekly";
+            if (!name.isEmpty()) {
+                databaseHandler.addChore(name, frequency);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private String normalizeFrequency(String raw) {
+        String s = raw.toLowerCase();
+        if (s.contains("daily"))     return "Daily";
+        if (s.contains("biweekly")) return "Biweekly";
+        if (s.contains("monthly"))  return "Monthly";
+        return "Weekly";
+    }
+
+    private void saveDefaultChores() {
+        String[][] defaults = {
+            {"Wash dishes",         "Daily"},
+            {"Wipe down kitchen",   "Daily"},
+            {"Vacuum floors",       "Weekly"},
+            {"Mop floors",          "Weekly"},
+            {"Clean bathrooms",     "Weekly"},
+            {"Take out trash",      "Weekly"},
+            {"Do laundry",          "Weekly"},
+            {"Change bed sheets",   "Biweekly"},
+            {"Dust surfaces",       "Biweekly"},
+            {"Clean mirrors",       "Biweekly"},
+            {"Deep clean kitchen",  "Monthly"},
+            {"Clean oven",          "Monthly"},
+        };
+        for (String[] chore : defaults) {
+            databaseHandler.addChore(chore[0], chore[1]);
+        }
+    }
+
+    private void navigateToMain() {
+        runOnUiThread(() -> {
             Intent intent = new Intent(this, MainActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
-        }, 2200);
+        });
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
