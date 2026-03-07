@@ -1,5 +1,6 @@
 package com.annabenson.tidy;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -30,6 +31,12 @@ public class MainActivity extends AppCompatActivity implements ChoreAdapter.List
         setContentView(R.layout.activity_main);
 
         databaseHandler = new DatabaseHandler(this);
+
+        if (!databaseHandler.hasProfile()) {
+            startActivity(new Intent(this, OnboardingActivity.class));
+            finish();
+            return;
+        }
 
         recyclerView = findViewById(R.id.recyclerID);
         choreAdapter = new ChoreAdapter(chores, this);
