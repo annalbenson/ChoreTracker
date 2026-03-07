@@ -81,26 +81,26 @@ public class OnboardingActivity extends AppCompatActivity {
     private void handleTextResponse(String text) {
         switch (currentStep) {
             case STEP_NAME:
-                profile.name = capitalize(text);
+                profile.name = extractName(text);
                 currentStep = STEP_HOME_TYPE;
                 postTilly("Great to meet you, " + profile.name + "! 😊 " +
                         "Tell me about your place — is it an apartment, house, condo, or something else?");
                 break;
 
             case STEP_HOME_TYPE:
-                profile.homeType = text;
+                profile.homeType = extractHomeType(text);
                 currentStep = STEP_BEDROOMS;
                 postTilly("Got it! How many bedrooms does it have?");
                 break;
 
             case STEP_BEDROOMS:
-                profile.bedrooms = parseNumber(text, 1);
+                profile.bedrooms = parseNumberWords(text, 1);
                 currentStep = STEP_BATHROOMS;
                 postTilly("And bathrooms?");
                 break;
 
             case STEP_BATHROOMS:
-                profile.bathrooms = parseNumber(text, 1);
+                profile.bathrooms = parseNumberWords(text, 1);
                 currentStep = STEP_LAUNDRY;
                 postTillyWithChips(
                         "Do you have laundry at home, or do you use a shared machine or laundromat?",
@@ -187,13 +187,54 @@ public class OnboardingActivity extends AppCompatActivity {
                 chatRecycler.smoothScrollToPosition(adapter.getItemCount() - 1));
     }
 
+    /** Extracts a proper name from phrases like "my name is anna", "I'm Anna", "call me Anna". */
+    private String extractName(String raw) {
+        String s = raw.trim().toLowerCase();
+        String[] prefixes = {
+            "my name is ", "i'm ", "im ", "i am ", "it's ", "its ", "call me ", "just "
+        };
+        for (String prefix : prefixes) {
+            if (s.startsWith(prefix)) {
+                s = s.substring(prefix.length()).trim();
+                break;
+            }
+        }
+        // Take only the first word (first name)
+        String firstName = s.split("\\s+")[0];
+        return capitalize(firstName);
+    }
+
+    /** Normalizes home type from free text: "I live in an apartment" → "Apartment". */
+    private String extractHomeType(String raw) {
+        String s = raw.toLowerCase();
+        if (s.contains("apartment") || s.contains("apt"))  return "Apartment";
+        if (s.contains("townhouse") || s.contains("townhome")) return "Townhouse";
+        if (s.contains("condo"))                           return "Condo";
+        if (s.contains("studio"))                          return "Studio";
+        if (s.contains("house"))                           return "House";
+        if (s.contains("duplex"))                          return "Duplex";
+        // Fall back to capitalizing whatever they typed
+        return capitalize(raw.trim());
+    }
+
+    /** Parses a number from digits or English words: "two", "3 bedrooms", "a couple" → int. */
+    private int parseNumberWords(String s, int fallback) {
+        String lower = s.toLowerCase().trim();
+        if (lower.matches(".*\\bone\\b.*") || lower.startsWith("a ") || lower.equals("a")) return 1;
+        if (lower.contains("two")   || lower.contains("couple"))  return 2;
+        if (lower.contains("three"))                               return 3;
+        if (lower.contains("four"))                                return 4;
+        if (lower.contains("five"))                                return 5;
+        if (lower.contains("six"))                                 return 6;
+        // Fall back to stripping non-digits
+        String digitsOnly = s.replaceAll("[^0-9]", "");
+        if (digitsOnly.isEmpty()) return fallback;
+        try { return Integer.parseInt(digitsOnly); }
+        catch (NumberFormatException e) { return fallback; }
+    }
+
     private String capitalize(String s) {
         if (s == null || s.isEmpty()) return s;
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
-    }
-
-    private int parseNumber(String s, int fallback) {
-        try { return Integer.parseInt(s.replaceAll("[^0-9]", "")); }
-        catch (NumberFormatException e) { return fallback; }
     }
 }
