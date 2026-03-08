@@ -275,15 +275,20 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!-- Tilly FAB -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
+    <!-- Tilly avatar button -->
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/tillyFab"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
         android:layout_margin="16dp"
         android:src="@drawable/tilly_profile"
+        android:scaleType="centerCrop"
+        android:elevation="6dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="Chat with Tilly"
-        app:backgroundTint="@color/colorPrimary"
+        app:shapeAppearanceOverlay="@style/CircleShapeAppearance"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 

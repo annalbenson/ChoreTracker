@@ -38,6 +38,10 @@ Tilly guides you through onboarding, helps you build a cleaning routine, and ans
 - Daily reminder at 8 AM listing chores that are overdue or due today
 - Permission requested at first launch (Android 13+)
 
+### Tilly Avatar Button
+- Circular profile photo button (bottom-right corner) replaces the generic FAB icon
+- Taps open Tilly chat
+
 ### Tilly AI Chat
 - Personalized chat assistant powered by Gemini 2.0 Flash
 - Accessible via FAB from the main screen

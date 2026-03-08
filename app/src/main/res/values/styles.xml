@@ -10,4 +10,9 @@
         <item name="android:textColorSecondary">@color/colorTextSecondary</item>
     </style>
 
+    <style name="CircleShapeAppearance">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
 </resources>
