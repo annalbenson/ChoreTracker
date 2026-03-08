@@ -9,16 +9,34 @@ Tilly guides you through onboarding, helps you build a cleaning routine, and ans
 ## Features
 
 ### Home Screen
-- **Today strip** — horizontal scroll of daily chores with emoji room icons; tap to mark done, done cards fade and show ✓
-- **Coming Up list** — weekly/biweekly/monthly chores sorted by frequency, card-style with swipe gestures
+- **Today strip** — horizontal scroll of daily chores with emoji icons; tap to mark done, done cards fade and show ✓
+- **Coming Up list** — non-daily chores sorted by due date (overdue floats to top), card-style
 - **Swipe right** to mark a chore done (green flash); **swipe left** for Edit / Delete
-- **+ FAB** to add a chore with name + frequency picker
+- **Filter chips** — All / Overdue / This week / As needed, sticky below the header
+- **+ FAB** to add a chore with name, frequency, and room picker
 - **Time-aware greeting** using your name from your home profile
 - **Declutter button** in the header for quick access
 
 ### Chore Detail
-- Tap any chore to see frequency, last done date, and full completion history
+- Tap any chore to see frequency, next due date, last done date, and full completion history
 - Mark Done from the detail screen
+
+### Room Organization
+- 8 built-in rooms: Kitchen 🍳, Bathroom 🛁, Bedroom 🛏️, Living Room 🛋️, Office 💼, Entryway 🚪, Laundry Room 👔, Garage 🚗
+- Assign any chore to a room when adding or editing
+- Room shown in chore rows: "Weekly  ·  🍳 Kitchen"
+
+### Overdue Indicators
+- Due label turns terracotta when a chore is past its due date
+- Overdue chores sort to the top of Coming Up automatically
+
+### Auto-Scheduling
+- Every chore gets a next-due date calculated from when it was last completed
+- Frequencies: Daily, Weekly, Biweekly, Monthly, As needed (no due date)
+
+### Push Notifications
+- Daily reminder at 8 AM listing chores that are overdue or due today
+- Permission requested at first launch (Android 13+)
 
 ### Tilly AI Chat
 - Personalized chat assistant powered by Gemini 2.0 Flash
@@ -46,9 +64,10 @@ Tilly guides you through onboarding, helps you build a cleaning routine, and ans
 
 - **Language:** Java
 - **Min SDK:** 21 | **Target SDK:** 34
-- **Database:** SQLite via `SQLiteOpenHelper` (v3) — FK cascade, index on CompletionTable.ChoreId, single-row profile table
+- **Database:** SQLite via `SQLiteOpenHelper` (v5) — RoomTable with seeded rooms, FK with ON DELETE SET NULL/CASCADE, LEFT JOIN queries, index on CompletionTable.ChoreId, atomic markDone transactions
 - **AI:** Gemini 2.0 Flash via Retrofit
-- **UI:** Material Components 1.11, RecyclerView, ConstraintLayout, CardView, NestedScrollView, ItemTouchHelper
+- **Background:** WorkManager 2.9.0 for daily notifications
+- **UI:** Material Components 1.11, RecyclerView, ChipGroup, ConstraintLayout, CardView, NestedScrollView, ItemTouchHelper
 
 ---
 

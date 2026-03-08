@@ -48,18 +48,22 @@
             app:layout_constraintTop_toTopOf="parent"
             tools:text="Clean kitchen" />
 
-        <!-- Frequency + last done -->
+        <!-- Frequency (+ room) | Due label -->
         <TextView
             android:id="@+id/frequencyID"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
+            android:layout_marginStart="4dp"
             android:textSize="12sp"
             android:textColor="@color/colorTextSecondary"
-            android:layout_marginStart="4dp"
+            android:maxLines="1"
+            android:ellipsize="end"
             app:layout_constraintStart_toEndOf="@id/emojiID"
+            app:layout_constraintEnd_toStartOf="@id/lastDoneID"
             app:layout_constraintTop_toBottomOf="@id/nameID"
-            tools:text="Weekly" />
+            app:layout_constraintHorizontal_weight="6"
+            tools:text="Weekly  ·  🍳 Kitchen" />
 
         <TextView
             android:id="@+id/lastDoneID"
@@ -67,12 +71,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:textSize="12sp"
-            android:textColor="@color/colorTextSecondary"
             android:gravity="end"
+            android:maxLines="1"
             app:layout_constraintEnd_toStartOf="@id/chevron"
             app:layout_constraintStart_toEndOf="@id/frequencyID"
             app:layout_constraintTop_toBottomOf="@id/nameID"
-            tools:text="Last done: Mar 3" />
+            app:layout_constraintHorizontal_weight="4"
+            tools:text="Due today" />
 
         <!-- Chevron -->
         <TextView
