@@ -10,60 +10,71 @@ import java.util.ArrayList;
 
 public class DatabaseHandler extends SQLiteOpenHelper {
 
-    private static final int DB_VERSION = 2;
+    private static final int DB_VERSION = 3;
     private static final String DB_NAME = "TidyDb";
 
-    private static final String TABLE_CHORES = "ChoreTable";
-    private static final String COL_ID = "ChoreId";
-    private static final String COL_NAME = "ChoreName";
-    private static final String COL_FREQUENCY = "ChoreFrequency";
+    // ── ChoreTable ────────────────────────────────────────────────────────────
+    private static final String TABLE_CHORES      = "ChoreTable";
+    private static final String COL_ID            = "ChoreId";
+    private static final String COL_NAME          = "ChoreName";
+    private static final String COL_FREQUENCY     = "ChoreFrequency";
 
-    private static final String TABLE_COMPLETIONS = "CompletionTable";
-    private static final String COL_COMPLETION_ID = "CompletionId";
-    private static final String COL_CHORE_ID_FK = "ChoreId";
-    private static final String COL_COMPLETED_AT = "CompletedAt";
+    // ── CompletionTable ───────────────────────────────────────────────────────
+    private static final String TABLE_COMPLETIONS  = "CompletionTable";
+    private static final String COL_COMPLETION_ID  = "CompletionId";
+    private static final String COL_CHORE_ID_FK    = "ChoreId";
+    private static final String COL_COMPLETED_AT   = "CompletedAt";
 
-    private static final String TABLE_PROFILE = "HomeProfileTable";
-    private static final String COL_PROFILE_NAME = "Name";
-    private static final String COL_HOME_TYPE = "HomeType";
-    private static final String COL_BEDROOMS = "Bedrooms";
-    private static final String COL_BATHROOMS = "Bathrooms";
-    private static final String COL_LAUNDRY = "LaundryType";
-    private static final String COL_HOUSEHOLD = "HouseholdMembers";
+    // ── HomeProfileTable ──────────────────────────────────────────────────────
+    private static final String TABLE_PROFILE      = "HomeProfileTable";
+    private static final String COL_PROFILE_ID     = "Id";           // ← added
+    private static final String COL_PROFILE_NAME   = "Name";
+    private static final String COL_HOME_TYPE      = "HomeType";
+    private static final String COL_BEDROOMS       = "Bedrooms";
+    private static final String COL_BATHROOMS      = "Bathrooms";
+    private static final String COL_LAUNDRY        = "LaundryType";
+    private static final String COL_HOUSEHOLD      = "HouseholdMembers";
     private static final String COL_CLEANING_STYLE = "CleaningStyle";
-    private static final String COL_PAIN_POINTS = "PainPoints";
+    private static final String COL_PAIN_POINTS    = "PainPoints";
 
     public DatabaseHandler(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
     }
 
     @Override
+    public void onConfigure(SQLiteDatabase db) {
+        db.setForeignKeyConstraintsEnabled(true);
+    }
+
+    @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE " + TABLE_CHORES + " (" +
-                COL_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                COL_NAME + " TEXT NOT NULL UNIQUE, " +
+                COL_ID        + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                COL_NAME      + " TEXT NOT NULL UNIQUE, " +
                 COL_FREQUENCY + " TEXT NOT NULL)");
 
         db.execSQL("CREATE TABLE " + TABLE_COMPLETIONS + " (" +
                 COL_COMPLETION_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                COL_CHORE_ID_FK + " INTEGER NOT NULL, " +
-                COL_COMPLETED_AT + " INTEGER NOT NULL, " +
-                "FOREIGN KEY(" + COL_CHORE_ID_FK + ") REFERENCES " + TABLE_CHORES + "(" + COL_ID + ") ON DELETE CASCADE)");
+                COL_CHORE_ID_FK   + " INTEGER NOT NULL, " +
+                COL_COMPLETED_AT  + " INTEGER NOT NULL, " +
+                "FOREIGN KEY(" + COL_CHORE_ID_FK + ") REFERENCES " +
+                TABLE_CHORES + "(" + COL_ID + ") ON DELETE CASCADE)");
 
+        // Index on the FK column — queries by ChoreId are frequent
+        db.execSQL("CREATE INDEX idx_completion_chore ON " +
+                TABLE_COMPLETIONS + "(" + COL_CHORE_ID_FK + ")");
+
+        // Single-row profile table; Id=1 is always used (enforced via CONFLICT_REPLACE)
         db.execSQL("CREATE TABLE " + TABLE_PROFILE + " (" +
-                COL_PROFILE_NAME + " TEXT, " +
-                COL_HOME_TYPE + " TEXT, " +
-                COL_BEDROOMS + " INTEGER DEFAULT 1, " +
-                COL_BATHROOMS + " INTEGER DEFAULT 1, " +
-                COL_LAUNDRY + " TEXT, " +
-                COL_HOUSEHOLD + " TEXT, " +
+                COL_PROFILE_ID     + " INTEGER PRIMARY KEY, " +
+                COL_PROFILE_NAME   + " TEXT NOT NULL, " +
+                COL_HOME_TYPE      + " TEXT NOT NULL, " +
+                COL_BEDROOMS       + " INTEGER NOT NULL DEFAULT 1, " +
+                COL_BATHROOMS      + " INTEGER NOT NULL DEFAULT 1, " +
+                COL_LAUNDRY        + " TEXT, " +
+                COL_HOUSEHOLD      + " TEXT, " +
                 COL_CLEANING_STYLE + " TEXT, " +
-                COL_PAIN_POINTS + " TEXT)");
-    }
-
-    @Override
-    public void onConfigure(SQLiteDatabase db) {
-        db.setForeignKeyConstraintsEnabled(true);
+                COL_PAIN_POINTS    + " TEXT)");
     }
 
     @Override
@@ -80,7 +91,20 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put(COL_NAME, name);
         values.put(COL_FREQUENCY, frequency);
-        getWritableDatabase().insertWithOnConflict(TABLE_CHORES, null, values, SQLiteDatabase.CONFLICT_IGNORE);
+        getWritableDatabase().insertWithOnConflict(
+                TABLE_CHORES, null, values, SQLiteDatabase.CONFLICT_IGNORE);
+    }
+
+    /** Returns false if the new name conflicts with an existing chore. */
+    public boolean updateChore(int choreId, String name, String frequency) {
+        ContentValues values = new ContentValues();
+        values.put(COL_NAME, name);
+        values.put(COL_FREQUENCY, frequency);
+        long rows = getWritableDatabase().updateWithOnConflict(
+                TABLE_CHORES, values, COL_ID + "=?",
+                new String[]{String.valueOf(choreId)},
+                SQLiteDatabase.CONFLICT_IGNORE);
+        return rows > 0;
     }
 
     public void deleteChore(int choreId) {
@@ -104,13 +128,28 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 int id = cursor.getInt(0);
-                String name = cursor.getString(1);
-                String frequency = cursor.getString(2);
-                chores.add(new Chore(id, name, frequency, loadCompletions(id)));
+                chores.add(new Chore(id, cursor.getString(1), cursor.getString(2),
+                        loadCompletions(id)));
             }
             cursor.close();
         }
         return chores;
+    }
+
+    public Chore loadChore(int choreId) {
+        Cursor cursor = getReadableDatabase().query(
+                TABLE_CHORES,
+                new String[]{COL_ID, COL_NAME, COL_FREQUENCY},
+                COL_ID + "=?", new String[]{String.valueOf(choreId)},
+                null, null, null);
+        if (cursor != null && cursor.moveToFirst()) {
+            Chore chore = new Chore(cursor.getInt(0), cursor.getString(1),
+                    cursor.getString(2), loadCompletions(choreId));
+            cursor.close();
+            return chore;
+        }
+        if (cursor != null) cursor.close();
+        return null;
     }
 
     private ArrayList<Long> loadCompletions(int choreId) {
@@ -118,32 +157,20 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         Cursor cursor = getReadableDatabase().query(
                 TABLE_COMPLETIONS,
                 new String[]{COL_COMPLETED_AT},
-                COL_CHORE_ID_FK + "=?",
-                new String[]{String.valueOf(choreId)},
+                COL_CHORE_ID_FK + "=?", new String[]{String.valueOf(choreId)},
                 null, null, COL_COMPLETED_AT + " DESC");
         if (cursor != null) {
-            while (cursor.moveToNext()) {
-                timestamps.add(cursor.getLong(0));
-            }
+            while (cursor.moveToNext()) timestamps.add(cursor.getLong(0));
             cursor.close();
         }
         return timestamps;
     }
 
-    // ── Reset ─────────────────────────────────────────────────────────────────
-
-    public void resetAll() {
-        SQLiteDatabase db = getWritableDatabase();
-        db.delete(TABLE_COMPLETIONS, null, null);
-        db.delete(TABLE_CHORES, null, null);
-        db.delete(TABLE_PROFILE, null, null);
-    }
-
     // ── Home Profile ──────────────────────────────────────────────────────────
 
     public void saveProfile(HomeProfile profile) {
-        getWritableDatabase().delete(TABLE_PROFILE, null, null); // single-row table
         ContentValues values = new ContentValues();
+        values.put(COL_PROFILE_ID, 1); // single-row sentinel
         values.put(COL_PROFILE_NAME, profile.name);
         values.put(COL_HOME_TYPE, profile.homeType);
         values.put(COL_BEDROOMS, profile.bedrooms);
@@ -152,7 +179,9 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         values.put(COL_HOUSEHOLD, profile.householdMembers);
         values.put(COL_CLEANING_STYLE, profile.cleaningStyle);
         values.put(COL_PAIN_POINTS, profile.painPoints);
-        getWritableDatabase().insert(TABLE_PROFILE, null, values);
+        // CONFLICT_REPLACE atomically replaces the existing row if Id=1 already exists
+        getWritableDatabase().insertWithOnConflict(
+                TABLE_PROFILE, null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
     public HomeProfile loadProfile() {
@@ -160,17 +189,18 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                 TABLE_PROFILE, null, null, null, null, null, null);
         if (cursor != null && cursor.moveToFirst()) {
             HomeProfile p = new HomeProfile();
-            p.name = cursor.getString(cursor.getColumnIndexOrThrow(COL_PROFILE_NAME));
-            p.homeType = cursor.getString(cursor.getColumnIndexOrThrow(COL_HOME_TYPE));
-            p.bedrooms = cursor.getInt(cursor.getColumnIndexOrThrow(COL_BEDROOMS));
-            p.bathrooms = cursor.getInt(cursor.getColumnIndexOrThrow(COL_BATHROOMS));
-            p.laundryType = cursor.getString(cursor.getColumnIndexOrThrow(COL_LAUNDRY));
+            p.name             = cursor.getString(cursor.getColumnIndexOrThrow(COL_PROFILE_NAME));
+            p.homeType         = cursor.getString(cursor.getColumnIndexOrThrow(COL_HOME_TYPE));
+            p.bedrooms         = cursor.getInt(cursor.getColumnIndexOrThrow(COL_BEDROOMS));
+            p.bathrooms        = cursor.getInt(cursor.getColumnIndexOrThrow(COL_BATHROOMS));
+            p.laundryType      = cursor.getString(cursor.getColumnIndexOrThrow(COL_LAUNDRY));
             p.householdMembers = cursor.getString(cursor.getColumnIndexOrThrow(COL_HOUSEHOLD));
-            p.cleaningStyle = cursor.getString(cursor.getColumnIndexOrThrow(COL_CLEANING_STYLE));
-            p.painPoints = cursor.getString(cursor.getColumnIndexOrThrow(COL_PAIN_POINTS));
+            p.cleaningStyle    = cursor.getString(cursor.getColumnIndexOrThrow(COL_CLEANING_STYLE));
+            p.painPoints       = cursor.getString(cursor.getColumnIndexOrThrow(COL_PAIN_POINTS));
             cursor.close();
             return p;
         }
+        if (cursor != null) cursor.close();
         return null;
     }
 
@@ -180,5 +210,14 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         boolean exists = cursor != null && cursor.moveToFirst() && cursor.getInt(0) > 0;
         if (cursor != null) cursor.close();
         return exists;
+    }
+
+    // ── Reset ─────────────────────────────────────────────────────────────────
+
+    public void resetAll() {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE_COMPLETIONS, null, null);
+        db.delete(TABLE_CHORES, null, null);
+        db.delete(TABLE_PROFILE, null, null);
     }
 }

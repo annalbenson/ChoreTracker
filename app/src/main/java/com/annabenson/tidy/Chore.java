@@ -36,6 +36,16 @@ public class Chore implements Comparable<Chore> {
         return latest;
     }
 
+    public boolean isDoneToday() {
+        long lastDone = getLastCompletedAt();
+        if (lastDone == -1) return false;
+        java.util.Calendar now  = java.util.Calendar.getInstance();
+        java.util.Calendar done = java.util.Calendar.getInstance();
+        done.setTimeInMillis(lastDone * 1000);
+        return now.get(java.util.Calendar.YEAR)         == done.get(java.util.Calendar.YEAR)
+            && now.get(java.util.Calendar.DAY_OF_YEAR) == done.get(java.util.Calendar.DAY_OF_YEAR);
+    }
+
     @Override
     public int compareTo(Chore other) {
         return this.name.compareTo(other.name);

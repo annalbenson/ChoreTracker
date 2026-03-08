@@ -11,18 +11,21 @@ import java.util.Locale;
 
 public class ChoreViewHolder extends RecyclerView.ViewHolder {
 
+    private final TextView emojiText;
     private final TextView nameText;
     private final TextView frequencyText;
     private final TextView lastDoneText;
 
     public ChoreViewHolder(View view) {
         super(view);
-        nameText = view.findViewById(R.id.nameID);
+        emojiText     = view.findViewById(R.id.emojiID);
+        nameText      = view.findViewById(R.id.nameID);
         frequencyText = view.findViewById(R.id.frequencyID);
-        lastDoneText = view.findViewById(R.id.lastDoneID);
+        lastDoneText  = view.findViewById(R.id.lastDoneID);
     }
 
     public void bind(Chore chore) {
+        emojiText.setText(DailyChoreAdapter.emojiFor(chore.getName()));
         nameText.setText(chore.getName());
         frequencyText.setText(chore.getFrequency());
 
