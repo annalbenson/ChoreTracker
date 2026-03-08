@@ -27,16 +27,14 @@ import retrofit2.Response;
 
 public class OnboardingActivity extends AppCompatActivity {
 
-    // Onboarding steps
-    private static final int STEP_NAME           = 0;
-    private static final int STEP_HOME_TYPE      = 1;
-    private static final int STEP_BEDROOMS       = 2;
-    private static final int STEP_BATHROOMS      = 3;
-    private static final int STEP_LAUNDRY        = 4;
-    private static final int STEP_HOUSEHOLD      = 5;
-    private static final int STEP_CLEANING_STYLE = 6;
-    private static final int STEP_PAIN_POINTS    = 7;
-    private static final int STEP_DONE           = 8;
+    // Name is now captured at sign-up; onboarding starts at home profile
+    private static final int STEP_HOME_TYPE      = 0;
+    private static final int STEP_BEDROOMS       = 1;
+    private static final int STEP_BATHROOMS      = 2;
+    private static final int STEP_LAUNDRY        = 3;
+    private static final int STEP_HOUSEHOLD      = 4;
+    private static final int STEP_CLEANING_STYLE = 5;
+    private static final int STEP_PAIN_POINTS    = 6;
 
     private RecyclerView chatRecycler;
     private TextInputEditText messageInput;
@@ -44,14 +42,23 @@ public class OnboardingActivity extends AppCompatActivity {
     private OnboardingAdapter adapter;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private int currentStep = STEP_NAME;
+    private int currentStep = STEP_HOME_TYPE;
     private final HomeProfile profile = new HomeProfile();
     private DatabaseHandler databaseHandler;
+    private int userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_onboarding);
+
+        userId = getSharedPreferences(Prefs.NAME, MODE_PRIVATE)
+                .getInt(Prefs.KEY_USER_ID, -1);
+        if (userId == -1) {
+            startActivity(new Intent(this, AuthActivity.class));
+            finish();
+            return;
+        }
 
         databaseHandler = new DatabaseHandler(this);
 
@@ -73,9 +80,11 @@ public class OnboardingActivity extends AppCompatActivity {
             return false;
         });
 
-        // Kick off with Tilly's opening line
-        postTilly("Hi there! I'm Tilly 🌿 I'm here to help you stay on top of your home. " +
-                "Let's get to know each other a little. What's your name?");
+        String name = databaseHandler.getUserName(userId);
+        String firstName = name != null ? name.split("\\s+")[0] : "there";
+        postTilly("Hi " + firstName + "! I'm Tilly 🌿 Let's set up your home so I can build " +
+                "you the perfect chore list. What kind of place do you live in — " +
+                "apartment, house, condo?");
     }
 
     private void sendMessage() {
@@ -89,13 +98,6 @@ public class OnboardingActivity extends AppCompatActivity {
 
     private void handleTextResponse(String text) {
         switch (currentStep) {
-            case STEP_NAME:
-                profile.name = extractName(text);
-                currentStep = STEP_HOME_TYPE;
-                postTilly("Great to meet you, " + profile.name + "! 😊 " +
-                        "Tell me about your place — is it an apartment, house, condo, or something else?");
-                break;
-
             case STEP_HOME_TYPE:
                 profile.homeType = extractHomeType(text);
                 currentStep = STEP_BEDROOMS;
@@ -122,7 +124,6 @@ public class OnboardingActivity extends AppCompatActivity {
                 break;
 
             default:
-                // Steps handled by chips don't need a text fallback
                 break;
         }
     }
@@ -159,7 +160,7 @@ public class OnboardingActivity extends AppCompatActivity {
     }
 
     private void finishOnboarding() {
-        databaseHandler.saveProfile(profile);
+        databaseHandler.saveProfile(profile, userId);
         postTilly("Perfect — I've got everything I need! Give me just a moment while I put " +
                 "together a chore list for your home… 🌿");
         handler.postDelayed(this::generateStarterChores, 600);
@@ -190,14 +191,8 @@ public class OnboardingActivity extends AppCompatActivity {
                     public void onResponse(Call<GeminiResponse> call, Response<GeminiResponse> response) {
                         String text = response.isSuccessful() && response.body() != null
                                 ? response.body().getText() : null;
-                        Log.d("Tilly", "Chore generation response code: " + response.code());
-                        Log.d("Tilly", "Chore generation raw text: " + text);
                         int saved = text != null ? parseAndSaveChores(text) : 0;
-                        Log.d("Tilly", "Chores saved: " + saved);
-                        if (saved == 0) {
-                            Log.w("Tilly", "Falling back to default chore list");
-                            saveDefaultChores();
-                        }
+                        if (saved == 0) saveDefaultChores();
                         navigateToMain();
                     }
 
@@ -221,19 +216,18 @@ public class OnboardingActivity extends AppCompatActivity {
                 "Give me 10–14 practical chores suited to this home.";
     }
 
-    /** Returns number of chores successfully parsed and saved. */
     private int parseAndSaveChores(String raw) {
         int count = 0;
         for (String line : raw.split("\n")) {
             line = line.trim()
-                    .replaceAll("^[\\*\\-\\d\\.]+\\s*", "") // strip bullets/numbers
-                    .replaceAll("\\*\\*", "");               // strip markdown bold
+                    .replaceAll("^[\\*\\-\\d\\.]+\\s*", "")
+                    .replaceAll("\\*\\*", "");
             if (line.isEmpty()) continue;
             String[] parts = line.split("\\|");
             String name = parts[0].trim();
             String frequency = parts.length > 1 ? normalizeFrequency(parts[1].trim()) : "Weekly";
             if (!name.isEmpty()) {
-                databaseHandler.addChore(name, frequency);
+                databaseHandler.addChore(name, frequency, 0, userId);
                 count++;
             }
         }
@@ -242,7 +236,7 @@ public class OnboardingActivity extends AppCompatActivity {
 
     private String normalizeFrequency(String raw) {
         String s = raw.toLowerCase();
-        if (s.contains("daily"))     return "Daily";
+        if (s.contains("daily"))    return "Daily";
         if (s.contains("biweekly")) return "Biweekly";
         if (s.contains("monthly"))  return "Monthly";
         return "Weekly";
@@ -264,7 +258,7 @@ public class OnboardingActivity extends AppCompatActivity {
             {"Clean oven",          "Monthly"},
         };
         for (String[] chore : defaults) {
-            databaseHandler.addChore(chore[0], chore[1]);
+            databaseHandler.addChore(chore[0], chore[1], 0, userId);
         }
     }
 
@@ -303,46 +297,25 @@ public class OnboardingActivity extends AppCompatActivity {
                 chatRecycler.smoothScrollToPosition(adapter.getItemCount() - 1));
     }
 
-    /** Extracts a proper name from phrases like "my name is anna", "I'm Anna", "call me Anna". */
-    private String extractName(String raw) {
-        String s = raw.trim().toLowerCase();
-        String[] prefixes = {
-            "my name is ", "i'm ", "im ", "i am ", "it's ", "its ", "call me ", "just "
-        };
-        for (String prefix : prefixes) {
-            if (s.startsWith(prefix)) {
-                s = s.substring(prefix.length()).trim();
-                break;
-            }
-        }
-        // Take only the first word (first name)
-        String firstName = s.split("\\s+")[0];
-        return capitalize(firstName);
-    }
-
-    /** Normalizes home type from free text: "I live in an apartment" → "Apartment". */
     private String extractHomeType(String raw) {
         String s = raw.toLowerCase();
-        if (s.contains("apartment") || s.contains("apt"))  return "Apartment";
+        if (s.contains("apartment") || s.contains("apt"))      return "Apartment";
         if (s.contains("townhouse") || s.contains("townhome")) return "Townhouse";
-        if (s.contains("condo"))                           return "Condo";
-        if (s.contains("studio"))                          return "Studio";
-        if (s.contains("house"))                           return "House";
-        if (s.contains("duplex"))                          return "Duplex";
-        // Fall back to capitalizing whatever they typed
+        if (s.contains("condo"))                               return "Condo";
+        if (s.contains("studio"))                              return "Studio";
+        if (s.contains("house"))                               return "House";
+        if (s.contains("duplex"))                              return "Duplex";
         return capitalize(raw.trim());
     }
 
-    /** Parses a number from digits or English words: "two", "3 bedrooms", "a couple" → int. */
     private int parseNumberWords(String s, int fallback) {
         String lower = s.toLowerCase().trim();
         if (lower.matches(".*\\bone\\b.*") || lower.startsWith("a ") || lower.equals("a")) return 1;
-        if (lower.contains("two")   || lower.contains("couple"))  return 2;
-        if (lower.contains("three"))                               return 3;
-        if (lower.contains("four"))                                return 4;
-        if (lower.contains("five"))                                return 5;
-        if (lower.contains("six"))                                 return 6;
-        // Fall back to stripping non-digits
+        if (lower.contains("two")   || lower.contains("couple")) return 2;
+        if (lower.contains("three"))                              return 3;
+        if (lower.contains("four"))                               return 4;
+        if (lower.contains("five"))                               return 5;
+        if (lower.contains("six"))                                return 6;
         String digitsOnly = s.replaceAll("[^0-9]", "");
         if (digitsOnly.isEmpty()) return fallback;
         try { return Integer.parseInt(digitsOnly); }

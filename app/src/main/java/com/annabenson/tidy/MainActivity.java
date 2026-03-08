@@ -13,6 +13,7 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -42,12 +43,12 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView dailyRecycler;
     private RecyclerView otherRecycler;
     private View todaySection, upcomingSection, sectionDivider, emptyState;
-    private TextView tvTodayCount;
+    private TextView tvGreeting, tvTodayCount;
     private ChipGroup chipGroup;
 
     private final ArrayList<Chore> dailyChores    = new ArrayList<>();
-    private final ArrayList<Chore> allOtherChores = new ArrayList<>(); // unfiltered
-    private final ArrayList<Chore> otherChores    = new ArrayList<>(); // filtered view
+    private final ArrayList<Chore> allOtherChores = new ArrayList<>();
+    private final ArrayList<Chore> otherChores    = new ArrayList<>();
 
     private enum Filter { ALL, OVERDUE, SOON, AS_NEEDED }
     private Filter activeFilter = Filter.ALL;
@@ -56,16 +57,25 @@ public class MainActivity extends AppCompatActivity {
     private ChoreAdapter otherAdapter;
     private DatabaseHandler db;
     private List<Room> rooms;
+    private int userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
+        userId = getSharedPreferences(Prefs.NAME, MODE_PRIVATE)
+                .getInt(Prefs.KEY_USER_ID, -1);
+        if (userId == -1) {
+            startActivity(new Intent(this, AuthActivity.class));
+            finish();
+            return;
+        }
+
+        setContentView(R.layout.activity_main);
         db = new DatabaseHandler(this);
         rooms = db.loadRooms();
 
-        if (!db.hasProfile()) {
+        if (!db.hasProfile(userId)) {
             startActivity(new Intent(this, OnboardingActivity.class));
             finish();
             return;
@@ -75,12 +85,12 @@ public class MainActivity extends AppCompatActivity {
         upcomingSection = findViewById(R.id.upcomingSection);
         sectionDivider  = findViewById(R.id.sectionDivider);
         emptyState      = findViewById(R.id.emptyState);
+        tvGreeting      = findViewById(R.id.tvGreeting);
         tvTodayCount    = findViewById(R.id.tvTodayCount);
         dailyRecycler   = findViewById(R.id.dailyRecycler);
         otherRecycler   = findViewById(R.id.otherRecycler);
         chipGroup       = findViewById(R.id.chipGroup);
 
-        // Daily horizontal scroller
         dailyRecycler.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         dailyAdapter = new DailyChoreAdapter(dailyChores, new DailyChoreAdapter.Listener() {
             @Override public void onTap(Chore chore) { handleDailyTap(chore); }
@@ -88,7 +98,6 @@ public class MainActivity extends AppCompatActivity {
         });
         dailyRecycler.setAdapter(dailyAdapter);
 
-        // Upcoming vertical list
         otherRecycler.setLayoutManager(new LinearLayoutManager(this));
         otherAdapter = new ChoreAdapter(otherChores, new ChoreAdapter.Listener() {
             @Override public void onChoreClick(Chore chore, int position) { openDetail(chore); }
@@ -99,7 +108,6 @@ public class MainActivity extends AppCompatActivity {
         otherRecycler.setAdapter(otherAdapter);
         attachSwipeHandler();
 
-        // Filter chips
         chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
             if (checkedIds.isEmpty()) return;
             int id = checkedIds.get(0);
@@ -110,11 +118,8 @@ public class MainActivity extends AppCompatActivity {
             applyFilter();
         });
 
-        // Greeting
-        HomeProfile profile = db.loadProfile();
-        String name = (profile != null && profile.name != null && !profile.name.isEmpty())
-                ? profile.name : null;
-        ((TextView) findViewById(R.id.tvGreeting)).setText(buildGreeting(name));
+        tvGreeting.setText(buildGreeting(db.getUserName(userId)));
+        tvGreeting.setOnLongClickListener(v -> { showAccountMenu(); return true; });
 
         findViewById(R.id.tillyFab).setOnClickListener(v ->
                 startActivity(new Intent(this, TillyActivity.class)));
@@ -122,7 +127,6 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnDeclutter).setOnClickListener(v ->
                 startActivity(new Intent(this, DeclutterActivity.class)));
 
-        // Notifications
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 100);
@@ -151,7 +155,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refreshChores() {
-        List<Chore> all = db.loadChores();
+        List<Chore> all = db.loadChores(userId);
 
         dailyChores.clear();
         allOtherChores.clear();
@@ -161,13 +165,11 @@ public class MainActivity extends AppCompatActivity {
             else allOtherChores.add(c);
         }
 
-        // Sort daily: not-done first, then name
         Collections.sort(dailyChores, (a, b) -> {
             if (a.isDoneToday() != b.isDoneToday()) return a.isDoneToday() ? 1 : -1;
             return a.getName().compareTo(b.getName());
         });
 
-        // Sort other: soonest due first (overdue floats to top), as-needed last
         Collections.sort(allOtherChores, (a, b) -> {
             long da = a.getNextDue(), db2 = b.getNextDue();
             if (da == -1 && db2 == -1) return a.getName().compareTo(b.getName());
@@ -210,7 +212,6 @@ public class MainActivity extends AppCompatActivity {
     private void updateVisibility() {
         boolean hasDaily   = !dailyChores.isEmpty();
         boolean hasOther   = !otherChores.isEmpty();
-        // Show empty state only when there are truly no chores at all
         boolean hasAnything = hasDaily || !allOtherChores.isEmpty();
 
         todaySection.setVisibility(hasDaily ? View.VISIBLE : View.GONE);
@@ -240,6 +241,35 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+    // ── Account menu (long-press on greeting) ─────────────────────────────────
+
+    private void showAccountMenu() {
+        PopupMenu popup = new PopupMenu(this, tvGreeting);
+        popup.getMenu().add(0, 0, 0, "Log out");
+        popup.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == 0) confirmLogout();
+            return true;
+        });
+        popup.show();
+    }
+
+    private void confirmLogout() {
+        new AlertDialog.Builder(this)
+                .setTitle("Log out?")
+                .setMessage("You'll need to sign in again to access your chores.")
+                .setPositiveButton("Log out", (d, i) -> logout())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void logout() {
+        getSharedPreferences(Prefs.NAME, MODE_PRIVATE).edit()
+                .remove(Prefs.KEY_USER_ID).apply();
+        Intent intent = new Intent(this, AuthActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+    }
+
     // ── Notifications ─────────────────────────────────────────────────────────
 
     private void scheduleNotification() {
@@ -262,7 +292,7 @@ public class MainActivity extends AppCompatActivity {
                 request);
     }
 
-    // ── Swipe handler (upcoming list only) ───────────────────────────────────
+    // ── Swipe handler ─────────────────────────────────────────────────────────
 
     private void attachSwipeHandler() {
         Paint paint = new Paint();
@@ -382,7 +412,7 @@ public class MainActivity extends AppCompatActivity {
                     String freq = (String) freqSpinner.getSelectedItem();
                     int roomId  = roomIdFromSpinner(roomSpinner);
                     if (name.isEmpty()) return;
-                    db.addChore(name, freq, roomId);
+                    db.addChore(name, freq, roomId, userId);
                     refreshChores();
                 })
                 .setNegativeButton("Cancel", null).show();
@@ -432,21 +462,19 @@ public class MainActivity extends AppCompatActivity {
                                                String label, Spinner spinner) {
         int pad = (int) (20 * dp);
         int gap = (int) (12 * dp);
-
-        TextView freqLabel = new TextView(this);
-        freqLabel.setText(label);
-        freqLabel.setTextColor(Color.parseColor("#6B7F77"));
-        freqLabel.setTextSize(12f);
+        TextView lbl = new TextView(this);
+        lbl.setText(label);
+        lbl.setTextColor(Color.parseColor("#6B7F77"));
+        lbl.setTextSize(12f);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.topMargin = gap; lp.bottomMargin = (int) (4 * dp);
-        freqLabel.setLayoutParams(lp);
-
+        lbl.setLayoutParams(lp);
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
         container.setPadding(pad, gap, pad, 0);
         container.addView(nameInput);
-        container.addView(freqLabel);
+        container.addView(lbl);
         container.addView(spinner);
         return container;
     }
@@ -472,7 +500,7 @@ public class MainActivity extends AppCompatActivity {
         else if (hour >= 12 && hour < 17) { prefix = "Happy afternoon"; suffix = "Let's get cleaning 🌿"; }
         else if (hour >= 17 && hour < 21) { prefix = "Good evening";    suffix = "A little goes a long way 🌿"; }
         else                              { prefix = "Still up";        suffix = "Even small wins count 🌿"; }
-        String namepart = (name != null) ? ", " + name + "!" : "!";
+        String namepart = (name != null && !name.isEmpty()) ? ", " + name + "!" : "!";
         return prefix + namepart + " " + suffix;
     }
 

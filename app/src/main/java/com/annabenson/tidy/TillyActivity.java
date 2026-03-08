@@ -38,11 +38,17 @@ public class TillyActivity extends AppCompatActivity {
     private OnboardingAdapter adapter; // reuse bubble UI
     private final List<GeminiRequest.Content> history = new ArrayList<>();
     private boolean waiting = false;
+    private int userId;
+    private DatabaseHandler db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_tilly);
+
+        userId = getSharedPreferences(Prefs.NAME, MODE_PRIVATE)
+                .getInt(Prefs.KEY_USER_ID, -1);
+        db = new DatabaseHandler(this);
 
         chatRecycler = findViewById(R.id.chatRecycler);
         messageInput = findViewById(R.id.messageInput);
@@ -58,11 +64,8 @@ public class TillyActivity extends AppCompatActivity {
         adapter = new OnboardingAdapter();
         chatRecycler.setAdapter(adapter);
 
-        // Personalized greeting using saved profile name
-        DatabaseHandler db = new DatabaseHandler(this);
-        HomeProfile profile = db.loadProfile();
-        String name = profile != null && profile.name != null ? profile.name : "";
-        String greeting = name.isEmpty()
+        String name = userId != -1 ? db.getUserName(userId) : null;
+        String greeting = (name == null || name.isEmpty())
                 ? "Hi! I'm Tilly 🌿 Ask me anything about cleaning, stains, or routines!"
                 : "Hi " + name + "! 🌿 Ask me anything — stain removal, cleaning routines, whatever you need.";
         addTillyMessage(greeting);
@@ -167,9 +170,9 @@ public class TillyActivity extends AppCompatActivity {
     }
 
     private void handleReonboard() {
-        addTillyMessage("Sure! I'll clear everything and we'll start fresh. See you in a moment 🌿");
+        addTillyMessage("Sure! I'll clear your chores and profile and we'll start fresh. See you in a moment 🌿");
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            new DatabaseHandler(this).resetAll();
+            if (userId != -1) db.resetAll(userId);
             Intent intent = new Intent(this, OnboardingActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
@@ -217,8 +220,7 @@ public class TillyActivity extends AppCompatActivity {
     }
 
     private void handleDailyPlan() {
-        DatabaseHandler db = new DatabaseHandler(this);
-        HomeProfile profile = db.loadProfile();
+        HomeProfile profile = userId != -1 ? db.loadProfile(userId) : null;
         String style = profile != null && profile.cleaningStyle != null
                 ? profile.cleaningStyle.toLowerCase() : "";
 

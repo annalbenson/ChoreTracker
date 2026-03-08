@@ -25,8 +25,13 @@ public class NotificationWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
+        int userId = getApplicationContext()
+                .getSharedPreferences(Prefs.NAME, android.content.Context.MODE_PRIVATE)
+                .getInt(Prefs.KEY_USER_ID, -1);
+        if (userId == -1) return Result.success();
+
         DatabaseHandler db = new DatabaseHandler(getApplicationContext());
-        List<Chore> all = db.loadChores();
+        List<Chore> all = db.loadChores(userId);
 
         List<String> dueNames = new ArrayList<>();
         for (Chore c : all) {

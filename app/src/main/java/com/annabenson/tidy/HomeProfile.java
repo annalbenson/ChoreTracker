@@ -1,7 +1,7 @@
 package com.annabenson.tidy;
 
 public class HomeProfile {
-    public String name;
+    // name is now stored in UserAccountsTable, not here
     public String homeType;
     public int bedrooms;
     public int bathrooms;

@@ -208,7 +208,7 @@ public class DeclutterActivity extends AppCompatActivity {
         if (room != null) {
             String label = capitalize(room);
             tvTitle.setText("Declutter: " + label);
-            tvTillyPrompt.setText("Let's tackle the " + room + " together. No pressure — just decide!");
+            tvTillyPrompt.setText("Let's clear out the " + room + ". No pressure — keep it, donate it, or toss it.");
         }
     }
 

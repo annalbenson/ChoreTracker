@@ -23,6 +23,7 @@ public class ChoreDetailActivity extends AppCompatActivity {
     private int choreId;
     private TextView tvChoreName;
     private TextView tvFrequency;
+    private TextView tvNextDue;
     private TextView tvLastDone;
     private LinearLayout historyContainer;
 
@@ -37,6 +38,7 @@ public class ChoreDetailActivity extends AppCompatActivity {
 
         tvChoreName      = findViewById(R.id.tvChoreName);
         tvFrequency      = findViewById(R.id.tvFrequency);
+        tvNextDue        = findViewById(R.id.tvNextDue);
         tvLastDone       = findViewById(R.id.tvLastDone);
         historyContainer = findViewById(R.id.historyContainer);
         ImageButton backButton  = findViewById(R.id.backButton);
@@ -54,6 +56,7 @@ public class ChoreDetailActivity extends AppCompatActivity {
 
         tvChoreName.setText(chore.getName());
         tvFrequency.setText(chore.getFrequency());
+        tvNextDue.setText(chore.getDueLabel());
 
         long lastDone = chore.getLastCompletedAt();
         tvLastDone.setText(lastDone == -1 ? "Never" : formatDate(lastDone));
@@ -76,7 +79,8 @@ public class ChoreDetailActivity extends AppCompatActivity {
     }
 
     private void markDone() {
-        db.markDone(choreId);
+        Chore chore = db.loadChore(choreId);
+        if (chore != null) db.markDone(choreId, chore.getFrequency());
         populateView();
     }
 

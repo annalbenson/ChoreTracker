@@ -70,7 +70,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="Let's tackle one spot at a time. No pressure — just decide!"
+            android:text="One spot at a time. No pressure — keep it, donate it, or toss it."
             android:textSize="14sp"
             android:textColor="@color/colorTextSecondary"
             android:lineSpacingMultiplier="1.3" />
